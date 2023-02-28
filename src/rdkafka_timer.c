@@ -122,6 +122,8 @@ static void rd_kafka_timer_schedule(rd_kafka_timers_t *rkts,
 int rd_kafka_timer_stop(rd_kafka_timers_t *rkts,
                         rd_kafka_timer_t *rtmr,
                         int lock) {
+        rd_kafka_dbg(rkts->rkts_rk, SECURITY, "MILIND", "stopping timer %p\n",
+                     rtmr);
         if (lock)
                 rd_kafka_timers_lock(rkts);
 

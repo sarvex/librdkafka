@@ -35,12 +35,15 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 /* Typical include path would be <librdkafka/rdkafka.h>, but this program
  * is builtin from within the librdkafka source tree and thus differs. */
 #include "rdkafka.h"
 
+static int msg_sent      = 0;
+static int msg_delivered = 0;
 
 static volatile sig_atomic_t run = 1;
 
@@ -69,22 +72,47 @@ dr_msg_cb(rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque) {
         if (rkmessage->err)
                 fprintf(stderr, "%% Message delivery failed: %s\n",
                         rd_kafka_err2str(rkmessage->err));
-        else
-                fprintf(stderr,
-                        "%% Message delivered (%zd bytes, "
-                        "partition %" PRId32 ")\n",
-                        rkmessage->len, rkmessage->partition);
+        else {
+                // fprintf(stderr,
+                //         "%% Message delivered (%zd bytes, "
+                //         "partition %" PRId32 ")\n",
+                // rkmessage->len, rkmessage->partition);
+                msg_delivered += 1;
+        }
 
         /* The rkmessage is destroyed automatically by librdkafka */
 }
 
+
+int32_t *test_get_broker_ids(rd_kafka_t *use_rk, size_t *cntp) {
+        int32_t *ids;
+        rd_kafka_t *rk = use_rk;
+        const rd_kafka_metadata_t *md;
+        rd_kafka_resp_err_t err;
+        size_t i;
+
+        err = rd_kafka_metadata(rk, 0, NULL, &md, (5000));
+
+        ids = malloc(sizeof(*ids) * md->broker_cnt);
+
+        for (i = 0; i < (size_t)md->broker_cnt; i++)
+                ids[i] = md->brokers[i].id;
+
+        *cntp = md->broker_cnt;
+
+        rd_kafka_metadata_destroy(md);
+
+        if (!use_rk)
+                rd_kafka_destroy(rk);
+
+        return ids;
+}
 
 
 int main(int argc, char **argv) {
         rd_kafka_t *rk;        /* Producer instance handle */
         rd_kafka_conf_t *conf; /* Temporary configuration object */
         char errstr[512];      /* librdkafka API error reporting buffer */
-        char buf[512];         /* Message value temporary buffer */
         const char *brokers;   /* Argument: broker list */
         const char *topic;     /* Argument: topic to produce to */
 
@@ -123,6 +151,16 @@ int main(int argc, char **argv) {
          * rd_kafka_flush(). */
         rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
 
+        rd_kafka_conf_set(conf, "sasl.mechanism", "PLAIN", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "security.protocol", "SASL_PLAINTEXT", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "sasl.username", "broker", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "sasl.password", "broker", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "debug", "security", errstr, sizeof(errstr));
+
         /*
          * Create producer instance.
          *
@@ -140,12 +178,46 @@ int main(int argc, char **argv) {
         /* Signal handler for clean shutdown */
         signal(SIGINT, stop);
 
-        fprintf(stderr,
-                "%% Type some text and hit enter to produce message\n"
-                "%% Or just hit enter to only serve delivery reports\n"
-                "%% Press Ctrl-C or Ctrl-D to exit\n");
+        size_t bcount;
+        int32_t *ids = test_get_broker_ids(rk, &bcount);
 
-        while (run && fgets(buf, sizeof(buf), stdin)) {
+        fprintf(stderr, "MILIND::id = %d\n", ids[0]);
+
+        rd_kafka_queue_t *queue = rd_kafka_queue_new(rk);
+
+        rd_kafka_ConfigResource_t *configs =
+            rd_kafka_ConfigResource_new(RD_KAFKA_RESOURCE_BROKER, "12");
+        rd_kafka_DescribeConfigs(rk, &configs, 1, NULL, queue);
+
+        rd_kafka_event_t *event =
+            rd_kafka_queue_poll(queue, -1 /* infinite timeout */);
+
+        const rd_kafka_ConfigResource_t **results;
+        size_t result_cnt;
+        results = rd_kafka_DescribeConfigs_result_resources(
+            rd_kafka_event_DescribeConfigs_result(event), &result_cnt);
+
+        if (result_cnt != 1) {
+                fprintf(stderr, "Got no result!!!\n");
+        }
+
+        const rd_kafka_ConfigEntry_t **configents;
+        size_t configent_cnt;
+        configents =
+            rd_kafka_ConfigResource_configs(results[0], &configent_cnt);
+
+        for (int i = 0; i < configent_cnt; i++) {
+                const char *entry_name =
+                    rd_kafka_ConfigEntry_name(configents[i]);
+                const char *entry_value =
+                    rd_kafka_ConfigEntry_value(configents[i]);
+                fprintf(stderr, "MILIND::config %s, value %s\n", entry_name,
+                        entry_value);
+        }
+
+
+        while (run /*&& fgets(buf, sizeof(buf), stdin)*/) {
+                char buf[] = "hello"; /* Message value temporary buffer */
                 size_t len = strlen(buf);
                 rd_kafka_resp_err_t err;
 
@@ -210,10 +282,11 @@ int main(int argc, char **argv) {
                                 goto retry;
                         }
                 } else {
-                        fprintf(stderr,
-                                "%% Enqueued message (%zd bytes) "
-                                "for topic %s\n",
-                                len, topic);
+                        msg_sent += 1;
+                        // fprintf(stderr,
+                        //         "%% Enqueued message (%zd bytes) "
+                        //         "for topic %s\n",
+                        //         len, topic);
                 }
 
 
@@ -246,6 +319,8 @@ int main(int argc, char **argv) {
 
         /* Destroy the producer instance */
         rd_kafka_destroy(rk);
+
+        fprintf(stderr, "Stats %d vs %d\n", msg_delivered, msg_sent);
 
         return 0;
 }

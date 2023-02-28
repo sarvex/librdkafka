@@ -50,6 +50,7 @@ def test_version(version, cmd=None, deploy=True, conf={}, debug=False,
     if 'SSL' in conf.get('security.protocol', ''):
         cluster.ssl = SslApp(cluster, conf)
 
+
     # One ZK (from Kafka repo)
     zk1 = ZookeeperApp(cluster)
     zk_address = zk1.get('address')
@@ -350,6 +351,7 @@ if __name__ == '__main__':
             args.sasl_oauthbearer_method
 
     args.conf.get('conf', list()).append("log.retention.bytes=1000000000")
+    args.conf.get('conf', list()).append("connections.max.reauth.ms=6000")
 
     for version in args.versions:
         r = test_version(version, cmd=args.cmd, deploy=args.deploy,

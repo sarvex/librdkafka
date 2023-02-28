@@ -138,6 +138,16 @@ int main(int argc, char **argv) {
                 return 1;
         }
 
+        rd_kafka_conf_set(conf, "sasl.mechanism", "PLAIN", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "security.protocol", "SASL_PLAINTEXT", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "sasl.username", "broker", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "sasl.password", "broker", errstr,
+                          sizeof(errstr));
+        rd_kafka_conf_set(conf, "debug", "security", errstr, sizeof(errstr));
+
         /*
          * Create consumer instance.
          *
