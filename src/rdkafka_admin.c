@@ -5297,7 +5297,97 @@ fail:
         rd_kafka_admin_common_worker_destroy(rk, rko, rd_true /*destroy*/);
 }
 
+static rd_kafka_resp_err_t rd_kafka_listOffsetsRequest(
+    rd_kafka_broker_t *rkb,
+    /* (rd_kafka_topic_partition_list_t*) */
+    const rd_list_t *partitions,
+    rd_kafka_AdminOptions_t *options,
+    char *errstr,
+    size_t errstr_size,
+    rd_kafka_replyq_t replyq,
+    rd_kafka_resp_cb_t *resp_cb,
+    void *opaque) {
+        const rd_kafka_topic_partition_list_t *partitions_list = 
+                rd_list_elem(partitions,0);
 
+        rd_kafka_ListOffsetsRequest(rkb,
+                                 partitions_list,
+                                 replyq,
+                                 resp_cb,
+                                 opaque)
+        
+        return RD_KAFKA_RESP_ERR_NO_ERROR;
+}
+
+/**
+ * @brief Parse OffsetCommitResponse and create ADMIN_RESULT op.
+ */
+static rd_kafka_resp_err_t rd_kafka_listOffsetsResponse_parse(rd_kafka_op_t *rko_req,
+                                                 rd_kafka_op_t **rko_resultp,
+                                                 rd_kafka_buf_t *reply,
+                                                 char *errstr,
+                                                 size_t errstr_size) {
+        rd_kafka_t *rk;
+        rd_kafka_broker_t *rkb;
+        rd_kafka_op_t *rko_result;
+        int *actionsp = NULL:
+        rd_kafka_resp_err_t err = RD_KAFKA_RESP_ERR_NO_ERROR;
+        
+        const rd_kafka_topic_partition_list_t *offsets = NULL;
+
+        rk  = rko_req->rko_rk;
+        rkb = reply->rkbuf_rkb;
+        err = rd_kafka_handle_ListOffsets(rk,rkb,err,reply,NULL,offsets,actionsp);
+        offsets = rd_kafka_topic_partition_list_copy(offsets);
+        /* Create result op and listOffsets_result_t */
+        rko_result = rd_kafka_admin_result_new(rko_req);
+        rd_list_init(&rko_result->rko_u.admin_result.results, 1,
+                     rd_kafka_topic_partition_list_destroy);
+
+        rd_list_add(&rko_result->rko_u.admin_result.results,
+                    offsets);
+        *rko_resultp = rko_result;
+
+        if (reply->rkbuf_err)
+                rd_snprintf(
+                    errstr, errstr_size,
+                    "ListOffset response parse failure: %s",
+                    rd_kafka_err2str(reply->rkbuf_err));
+
+        return reply->rkbuf_err;
+}
+
+void rd_kafka_listOffsets(
+    rd_kafka_t *rk,
+    rd_kafka_topic_partition_list_t *partition_list,
+    const rd_kafka_AdminOptions_t *options,
+    rd_kafka_queue_t *rkqu){
+                int i;
+                static const struct rd_kafka_admin_worker_cbs cbs = {
+                rd_kafka_listOffsetsRequest,
+                rd_kafka_listOffsetsResponse_parse,
+                };
+                rd_kafka_op_t *rko;
+
+                rd_assert(rkqu);
+
+                rko = rd_kafka_admin_request_op_new(
+                rk, RD_KAFKA_OP_LISTOFFSETS,
+                RD_KAFKA_EVENT_LISTOFFSETS_RESULT, &cbs, options,
+                rkqu->rkqu_q);
+                size_t listOffsets_cnt = listOffsets->cnt;
+
+
+                /* Store copy of group on request so the group name can be reached
+                * from the response parser. */
+                rd_list_init(&rko->rko_u.admin_request.args, 1,
+                        rd_kafka_topic_partition_list_destroy);
+                rd_list_add(&rko->rko_u.admin_request.args,
+                        (void *)rd_kafka_topic_partition_list_copy(partition_list));
+
+                rd_kafka_q_enq(rk->rk_ops, rko);
+                return;
+    }
 /**
  * @brief Get an array of group results from a AlterGroups result.
  *
