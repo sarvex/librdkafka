@@ -920,6 +920,10 @@ typedef struct rd_kafka_topic_partition_list_s {
         rd_kafka_topic_partition_t *elems; /**< Element array[] */
 } rd_kafka_topic_partition_list_t;
 
+typedef struct rd_kafka_ListOffsets_result_s{
+    rd_kafka_topic_partition_list_t partitions;
+    int64_t timestamp;
+} rd_kafka_ListOffsets_result_t;
 
 /**
  * @brief Create a new list/vector Topic+Partition container.
@@ -5282,6 +5286,8 @@ typedef int rd_kafka_event_type_t;
 #define RD_KAFKA_EVENT_LISTCONSUMERGROUPOFFSETS_RESULT 0x8000
 /** AlterConsumerGroupOffsets_result_t */
 #define RD_KAFKA_EVENT_ALTERCONSUMERGROUPOFFSETS_RESULT 0x10000
+/* ListOffsets*/
+#define RD_KAFKA_EVENT_LISTOFFSETS_RESULT 0x20000
 
 
 /**
@@ -5546,6 +5552,8 @@ typedef rd_kafka_event_t rd_kafka_DeleteGroups_result_t;
 typedef rd_kafka_event_t rd_kafka_DeleteConsumerGroupOffsets_result_t;
 /*! AlterConsumerGroupOffsets result type */
 typedef rd_kafka_event_t rd_kafka_AlterConsumerGroupOffsets_result_t;
+/*! ListOffsets result type*/
+typedef rd_kafka_event_t rd_kafka_ListOffsets_result_t;
 /*! ListConsumerGroupOffsets result type */
 typedef rd_kafka_event_t rd_kafka_ListConsumerGroupOffsets_result_t;
 
@@ -5717,6 +5725,11 @@ rd_kafka_event_DeleteAcls_result(rd_kafka_event_t *rkev);
  */
 RD_EXPORT const rd_kafka_AlterConsumerGroupOffsets_result_t *
 rd_kafka_event_AlterConsumerGroupOffsets_result(rd_kafka_event_t *rkev);
+
+
+RD_EXPORT const rd_kafka_ListOffsets_result_t *
+rd_kafka_event_ListOffsets_result(rd_kafka_event_t *rkev);
+
 
 /**
  * @brief Get ListConsumerGroupOffsets result.
