@@ -920,11 +920,29 @@ typedef struct rd_kafka_topic_partition_list_s {
         rd_kafka_topic_partition_t *elems; /**< Element array[] */
 } rd_kafka_topic_partition_list_t;
 
-typedef struct rd_kafka_ListOffsets_result_s{
-    rd_kafka_topic_partition_list_t partitions;
-    int64_t timestamp;
-} rd_kafka_ListOffsets_result_t;
+typedef enum rd_kafka_offset_spec_s{
+    RD_KAFKA_LATEST_OFFSET_SPEC = 0,
+    RD_KAFKA_EARLIEST_OFFSET_SPEC = 1,
+    RD_KAFKA_TIMESTAMP_OFFSET_SPEC = 2
+} rd_kafka_offset_spec_t;
 
+typedef struct rd_kafka_list_offset_s{
+    rd_kafka_topic_partition_t topicPartition;
+    rd_kafka_offset_spec_t offsetSpec;
+    int64_t timestamp;
+} rd_kafka_list_offset_t;
+
+typedef struct rd_kafka_list_offset_list_s{
+    int count;
+    int size;
+    rd_kafka_list_offset_response_t *offsets;
+} rd_kafka_list_offset_list_t;
+
+RD_EXPORT 
+rd_kafka_list_offset_t *rd_kafka_list_offset_new();
+
+RD_EXPORT
+rd_kafka_list_offset_list_t *rd_kafka_list_offset_list_new(int size); 
 /**
  * @brief Create a new list/vector Topic+Partition container.
  *

@@ -426,7 +426,7 @@ rd_kafka_FindCoordinatorRequest(rd_kafka_broker_t *rkb,
  */
 static rd_kafka_resp_err_t
 rd_kafka_parse_ListOffsets(rd_kafka_buf_t *rkbuf,
-                           rd_kafka_topic_partition_list_t *offsets) {
+                           rd_kafka_list_offset_list_t *offsets) {
         const int log_decode_errors = LOG_ERR;
         int32_t TopicArrayCnt;
         int16_t api_version;
@@ -457,13 +457,13 @@ rd_kafka_parse_ListOffsets(rd_kafka_buf_t *rkbuf,
                         int16_t ErrorCode;
                         int32_t OffsetArrayCnt;
                         int64_t Offset = -1;
-                        rd_kafka_topic_partition_t *rktpar;
+                        int64_t Timestamp = -1;
+                        rd_kafka_list_offset_t *list_offset;
 
                         rd_kafka_buf_read_i32(rkbuf, &kpartition);
                         rd_kafka_buf_read_i16(rkbuf, &ErrorCode);
 
                         if (api_version >= 1) {
-                                int64_t Timestamp;
                                 rd_kafka_buf_read_i64(rkbuf, &Timestamp);
                                 rd_kafka_buf_read_i64(rkbuf, &Offset);
                         } else if (api_version == 0) {
@@ -475,11 +475,14 @@ rd_kafka_parse_ListOffsets(rd_kafka_buf_t *rkbuf,
                         } else {
                                 rd_kafka_assert(NULL, !*"NOTREACHED");
                         }
-
-                        rktpar = rd_kafka_topic_partition_list_add(
-                            offsets, topic_name, kpartition);
-                        rktpar->err    = ErrorCode;
-                        rktpar->offset = Offset;
+                        
+                        list_offset = rd_kafka_list_offset_list_add(
+                            offsets);
+                        list_offset->timestamp = Timestamp;
+                        list_offset->topicPartition.partition = kpartition;
+                        list_offset->topicPartition.topic = strdup(topic_name);
+                        list_offset->topicPartition.err    = ErrorCode;
+                        list_offset->topicPartition.offset = Offset;
 
                         if (ErrorCode && !all_err)
                                 all_err = ErrorCode;
@@ -511,7 +514,7 @@ rd_kafka_handle_ListOffsets(rd_kafka_t *rk,
                             rd_kafka_resp_err_t err,
                             rd_kafka_buf_t *rkbuf,
                             rd_kafka_buf_t *request,
-                            rd_kafka_topic_partition_list_t *offsets,
+                            rd_kafka_list_offset_list_t *offsets,
                             int *actionsp) {
 
         int actions;
@@ -671,6 +674,10 @@ void rd_kafka_ListOffsetsRequest(rd_kafka_broker_t *rkb,
 
         rkbuf = rd_kafka_buf_new_request(
             rkb, RD_KAFKAP_ListOffsets, 1,
+            /* ReplicaId + IsolationLevel + topicArrayCount + topicArrayCount*(topicName + partition_count*(partitionIndex + Timestamp + MaxnumOffsets))*/
+            /*topicArrayCount*partition_count evaluates to total topicPartitions*/
+            /*ReplicaId + IsolationLevel + topicArrayCount + topicArrayCount*topic + total_partitions*(partitionIndex+Timestamp+maxnumOffsets)*/
+
             /* ReplicaId+IsolationLevel+TopicArrayCnt+Topic */
             4 + 1 + 4 + 100 +
                 /* PartArrayCnt */

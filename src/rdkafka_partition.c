@@ -2477,6 +2477,22 @@ void rd_kafka_topic_partition_get(const rd_kafka_topic_partition_t *rktpar,
         *partition                    = rktp->rktp_partition;
 }
 
+rd_kafka_list_offset_t *rd_kafka_list_offset_new(){
+        rd_kafka_list_offset_t *offset ;
+        offset = rd_calloc(1,sizeof(*offset));
+
+        return offset;
+}
+
+
+rd_kafka_list_offset_list_t *rd_kafka_list_offset_list_new(int size){
+        rd_kafka_list_offset_list_t *list_offset_list;
+        list_offset_list = rd_calloc(1,sizeof(*list_offset_list));
+        list_offset_list->size = size;
+        list_offset_list->count = 0;
+        list_offset_list->offsets = rd_calloc(size,sizeof(list_offset_list->offsets));
+        return list_offset_list;
+}
 
 
 /**
@@ -2630,7 +2646,12 @@ void rd_kafka_topic_partition_list_destroy_free(void *ptr) {
             (rd_kafka_topic_partition_list_t *)ptr);
 }
 
-
+rd_kafka_list_offset_t *
+rd_kafka_list_offset_list_add(rd_kafka_list_offset_list_t *offsets){
+        int count = offsets->count;
+        offsets->count++;
+        return &(offsets->offsets[count-1]);
+}
 /**
  * Add a partition to an rktpar list.
  * The list must have enough room to fit it.
