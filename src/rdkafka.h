@@ -914,6 +914,7 @@ void rd_kafka_topic_partition_destroy(rd_kafka_topic_partition_t *rktpar);
  * @brief A growable list of Topic+Partitions.
  *
  */
+
 typedef struct rd_kafka_topic_partition_list_s {
         int cnt;                           /**< Current number of elements */
         int size;                          /**< Current allocated size */
@@ -935,8 +936,11 @@ typedef struct rd_kafka_list_offset_s{
 typedef struct rd_kafka_list_offset_list_s{
     int count;
     int size;
-    rd_kafka_list_offset_response_t *offsets;
+    rd_kafka_list_offset_t *offsets;
 } rd_kafka_list_offset_list_t;
+
+RD_EXPORT
+rd_kafka_list_offset_t *rd_kafka_list_offset_list_add();
 
 RD_EXPORT 
 rd_kafka_list_offset_t *rd_kafka_list_offset_new();
@@ -960,6 +964,11 @@ rd_kafka_list_offset_list_t *rd_kafka_list_offset_list_new(int size);
 RD_EXPORT
 rd_kafka_topic_partition_list_t *rd_kafka_topic_partition_list_new(int size);
 
+
+RD_EXPORT
+static void
+rd_kafka_topic_partition_destroy0(rd_kafka_topic_partition_t *rktpar,
+                                  int do_free);
 
 /**
  * @brief Free all resources used by the list and the list itself.

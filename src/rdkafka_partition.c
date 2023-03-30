@@ -2477,6 +2477,12 @@ void rd_kafka_topic_partition_get(const rd_kafka_topic_partition_t *rktpar,
         *partition                    = rktp->rktp_partition;
 }
 
+rd_kafka_list_offset_t *rd_kafka_list_offset_list_add(rd_kafka_list_offset_list_t *offsetlist){
+        int count = offsetlist->count;
+        offsetlist->count++;
+        return &offsetlist->offsets[count];
+}
+
 rd_kafka_list_offset_t *rd_kafka_list_offset_new(){
         rd_kafka_list_offset_t *offset ;
         offset = rd_calloc(1,sizeof(*offset));

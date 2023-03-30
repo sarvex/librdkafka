@@ -384,6 +384,8 @@ rd_kafka_resp_err_t rd_kafka_EndTxnRequest(rd_kafka_broker_t *rkb,
 
 int unittest_request(void);
 
+rd_kafka_resp_err_t
+rd_kafka_parse_ListOffsets(rd_kafka_buf_t *reply,rd_kafka_list_offset_list_t *offsets);
 
 rd_kafka_resp_err_t
 rd_kafka_DeleteRecordsRequest(rd_kafka_broker_t *rkb,
