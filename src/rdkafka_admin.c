@@ -4833,39 +4833,6 @@ rd_kafka_resp_err_t rd_kafka_DescribeUserScramCredentialsRequest(rd_kafka_broker
         return RD_KAFKA_RESP_ERR_NO_ERROR;
 }
 
-void rd_kafka_scram_credential_destroy(rd_kafka_scram_credential_t *scram_credential){
-        rd_free(scram_credential->err);
-        rd_free(scram_credential->salt);
-        rd_free(scram_credential->saltedpassword);
-        rd_free(scram_credential->user);
-        rd_free(scram_credential);
-}
-rd_kafka_scram_credential_t *rd_kafka_scram_credential_new(char *username,int8_t mechanism,int32_t iteration){
-        rd_kafka_scram_credential_t *scram_credential;
-        scram_credential = rd_calloc(1,sizeof(*scram_credential));
-        scram_credential->iterations = iteration;
-        scram_credential->mechanism = mechanism;
-        scram_credential->user = rd_strdup(username);
-        scram_credential->err = NULL;
-        scram_credential->salt = NULL;
-        scram_credential->saltedpassword = NULL:
-        scram_credential->errorcode = 0;
-        return scram_credential;
-}
-rd_kafka_scram_credential_t *rd_kafka_scram_credential_copy(rd_kafka_scram_credential_t *scram_cred){
-        
-        rd_kafka_scram_credential_t *scram_credential;
-        scram_credential = rd_calloc(1,sizeof(*scram_credential));
-        scram_credential->iterations = scram_cred->iterations;
-        scram_credential->mechanism = scram_cred->mechanism;
-        scram_credential->user = rd_strdup(scram_cred->user);
-        scram_credential->err = rd_strdup(scram_cred->err);
-        scram_credential->salt = rd_kafkap_bytes_copy(scram_cred->salt);
-        scram_credential->saltedpassword = rd_kafkap_bytes_copy(scram_cred->saltedpassword):
-        scram_credential->errorcode = scram_cred->errorcode;
-        return scram_credential;
-
-}
 static rd_kafka_resp_err_t
 rd_kafka_DescribeUserScramCredentialsResponse_parse(rd_kafka_op_t *rko_req,
                                     rd_kafka_op_t **rko_resultp,

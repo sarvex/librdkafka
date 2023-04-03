@@ -878,27 +878,21 @@ rd_kafka_error_t *rd_kafka_error_new(rd_kafka_resp_err_t code,
                                      const char *fmt,
                                      ...) RD_FORMAT(printf, 2, 3);
 
-typedef enum rd_kafka_scram_mechanism_s {
-    UNKNOWN = 0,
-    SCRAM_SHA_256 = 1,
-    SCRAM_SHA_512 = 2
-} rd_kafka_scram_mechanism_t;
+typedef enum rd_kafka_scram_mechanism_s rd_kafka_scram_mechanism_t;
 
-typedef struct rd_kafka_scram_credential_s {
-    char *user;
-    int16_t errorcode;
-    char* err;
-    rd_kafka_scram_mechanism_t mechanism;
-    int32_t iterations;
-    rd_kafkap_bytes_t *salt;
-    rd_kafkap_bytes_t *saltedpassword;
-} rd_kafka_scram_credential_t;
+typedef struct rd_kafka_scram_credential_s rd_kafka_scram_credential_t;
 
-typedef struct rd_kafka_scram_credential_list_s {
-    int cnt;
-    int size;
-    rd_kafka_scram_credential_t *credentials;
-} rd_kafka_scram_credential_list_t;
+typedef struct rd_kafka_scram_credential_list_s rd_kafka_scram_credential_list_t;
+
+RD_EXPORT
+void rd_kafka_scram_credential_destroy(rd_kafka_scram_credential_t *scram_credential);
+
+RD_EXPORT
+rd_kafka_scram_credential_t *rd_kafka_scram_credential_new(char *username,int8_t mechanism,int32_t iteration);
+
+RD_EXPORT
+rd_kafka_scram_credential_t *rd_kafka_scram_credential_copy(rd_kafka_scram_credential_t *scram_cred);
+
 
 /**
  * @brief Topic+Partition place holder
@@ -9363,6 +9357,12 @@ rd_kafka_error_t *rd_kafka_commit_transaction(rd_kafka_t *rk, int timeout_ms);
 RD_EXPORT
 rd_kafka_error_t *rd_kafka_abort_transaction(rd_kafka_t *rk, int timeout_ms);
 
+RD_EXPORT 
+void rd_kafka_DescribeUserScramCredentials(rd_kafka_t *rk,
+                           char **users,
+                           int num_users,
+                           const rd_kafka_AdminOptions_t *options,
+                           rd_kafka_queue_t *rkqu);
 
 /**@}*/
 
