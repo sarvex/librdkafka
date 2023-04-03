@@ -878,6 +878,27 @@ rd_kafka_error_t *rd_kafka_error_new(rd_kafka_resp_err_t code,
                                      const char *fmt,
                                      ...) RD_FORMAT(printf, 2, 3);
 
+typedef enum rd_kafka_scram_mechanism_s {
+    UNKNOWN = 0,
+    SCRAM_SHA_256 = 1,
+    SCRAM_SHA_512 = 2
+} rd_kafka_scram_mechanism_t;
+
+typedef struct rd_kafka_scram_credential_s {
+    char *user;
+    int16_t errorcode;
+    char* err;
+    rd_kafka_scram_mechanism_t mechanism;
+    int32_t iterations;
+    rd_kafkap_bytes_t *salt;
+    rd_kafkap_bytes_t *saltedpassword;
+} rd_kafka_scram_credential_t;
+
+typedef struct rd_kafka_scram_credential_list_s {
+    int cnt;
+    int size;
+    rd_kafka_scram_credential_t *credentials;
+} rd_kafka_scram_credential_list_t;
 
 /**
  * @brief Topic+Partition place holder
@@ -946,12 +967,12 @@ int32_t rd_kafka_topic_partition_get_leader_epoch(
  * @brief A growable list of Topic+Partitions.
  *
  */
+
 typedef struct rd_kafka_topic_partition_list_s {
         int cnt;                           /**< Current number of elements */
         int size;                          /**< Current allocated size */
         rd_kafka_topic_partition_t *elems; /**< Element array[] */
 } rd_kafka_topic_partition_list_t;
-
 
 /**
  * @brief Create a new list/vector Topic+Partition container.
@@ -969,7 +990,6 @@ typedef struct rd_kafka_topic_partition_list_s {
  */
 RD_EXPORT
 rd_kafka_topic_partition_list_t *rd_kafka_topic_partition_list_new(int size);
-
 
 /**
  * @brief Free all resources used by the list and the list itself.
@@ -5360,6 +5380,10 @@ typedef int rd_kafka_event_type_t;
 #define RD_KAFKA_EVENT_LISTCONSUMERGROUPOFFSETS_RESULT 0x8000
 /** AlterConsumerGroupOffsets_result_t */
 #define RD_KAFKA_EVENT_ALTERCONSUMERGROUPOFFSETS_RESULT 0x10000
+/* Describe User Scram Credentials*/
+#define RD_KAFKA_EVENT_DESCRIBEUSERSCRAMCREDENTIALS_RESULT 0x20000
+/* Alter User Scram Credentials*/
+#define RD_KAFKA_EVENT_ALTERUSERSCRAMCREDENTIALS_RESULT 0x40000
 
 
 /**
@@ -5626,6 +5650,10 @@ typedef rd_kafka_event_t rd_kafka_DeleteConsumerGroupOffsets_result_t;
 typedef rd_kafka_event_t rd_kafka_AlterConsumerGroupOffsets_result_t;
 /*! ListConsumerGroupOffsets result type */
 typedef rd_kafka_event_t rd_kafka_ListConsumerGroupOffsets_result_t;
+/*! DescribeUserScramCredentials result type */
+typedef rd_kafka_event_t rd_kafka_DescribeUserScramCredentials_result_t;
+/*! AlterUserScramCredentials result type */
+typedef rd_kafka_event_t rd_kafka_AlterUserScramCredentials_result_t;
 
 /**
  * @brief Get CreateTopics result.
@@ -5796,6 +5824,12 @@ rd_kafka_event_DeleteAcls_result(rd_kafka_event_t *rkev);
 RD_EXPORT const rd_kafka_AlterConsumerGroupOffsets_result_t *
 rd_kafka_event_AlterConsumerGroupOffsets_result(rd_kafka_event_t *rkev);
 
+
+RD_EXPORT const rd_kafka_DescribeUserScramCredentials_result_t *
+rd_kafka_event_DescribeUserScramCredentials_result(rd_kafka_event_t *rkev);
+
+RD_EXPORT   const rd_kafka_AlterUserScramCredentials_result_t *
+rd_kafka_event_AlterUserScramCredentials_result(rd_kafka_event_t *rkev);
 /**
  * @brief Get ListConsumerGroupOffsets result.
  *
