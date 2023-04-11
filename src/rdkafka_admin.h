@@ -476,13 +476,13 @@ struct rd_kafka_ConsumerGroupDescription_s {
         /** Group specific error. */
         rd_kafka_error_t *error;
 };
-typedef enum rd_kafka_scram_mechanism_s {
+enum rd_kafka_scram_mechanism_s {
     UNKNOWN = 0,
     SCRAM_SHA_256 = 1,
     SCRAM_SHA_512 = 2
 };
 
-typedef struct rd_kafka_scram_credential_s {
+struct rd_kafka_scram_credential_s {
     char *user;
     int16_t errorcode;
     char* err;
@@ -492,7 +492,7 @@ typedef struct rd_kafka_scram_credential_s {
     rd_kafkap_bytes_t *saltedpassword;
 };
 
-typedef struct rd_kafka_scram_credential_list_s {
+struct rd_kafka_scram_credential_list_s {
     int cnt;
     int size;
     rd_kafka_scram_credential_t *credentials;
@@ -529,6 +529,71 @@ rd_kafka_scram_credential_t *rd_kafka_scram_credential_copy(rd_kafka_scram_crede
         scram_credential->errorcode = scram_cred->errorcode;
         return scram_credential;
 
+}
+int rd_kafka_count_AlterUserScramCredentials_result(rd_kafka_DescribeUserScramCredentials_result_t *result){
+        return rd_list_cnt(result->rko_u.admin_result.results);
+}
+void rd_kafka_read_AlterUserScramCredentials_result(rd_kafka_DescribeUserScramCredentials_result_t *result,int idx,char *username,int *errorcode,char *err){
+        rd_kafka_scram_credential_t *scram_credential = rd_list_elem(result->rko_u.admin_result.results,idx);
+        username = rd_strdup(scram_credential->user);
+        *errorcode = scram_credential->errorcode;
+        err =  rd_strdup(scram_credential->err);
+}
+void rd_kafka_scram_credential_list_destroy(rd_kafka_scram_credential_list_t *credential_list){
+        int i;
+        for(i=0;i<credential_list->cnt;i++){
+                rd_free(&credential_list->credentials[i].err);
+                rd_free(&credential_list->credentials[i].user);
+                rd_free(&credential_list->credentials[i].salt);
+                rd_free(&credential_list->credentials[i].saltedpassword);
+        }
+        rd_free(credential_list->credentials);
+        rd_free(credential_list);
+}
+rd_kafka_scram_credential_list_t *rd_kafka_scram_credential_list_new(int size){
+        rd_kafka_scram_credential_list_t* credential_list;
+        credential_list = rd_calloc(1,sizeof(*credential_list));
+        rd_kafka_scram_credential_t *scram;
+        credential_list->credentials = rd_calloc(size,sizeof(*scram));
+        credential_list->size = size;
+        credential_list->cnt = 0;
+        return credential_list;
+}
+rd_kafka_scram_credential_t *rd_kafka_scram_credential_list_add_new(rd_kafka_scram_credential_list_t *credential_list,char *user,int8_t mechanism,int32_t iterations){
+        int idx = credential_list->cnt;
+        credential_list->credentials[idx].user = rd_strdup(user);
+        credential_list->credentials[idx].iterations = iterations;
+        credential_list->credentials[idx].mechanism = mechanism;
+        credential_list->cnt++;
+        return &credential_list->credentials[idx];
+}
+                        
+void rd_kafka_scram_credential_list_cnt(rd_kafka_scram_credential_list_t *credential_list,int *num_credentials){
+        *num_credentials = credential_list->cnt;
+}
+void rd_kafka_scram_credential_list_get_user_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,char **username){
+        *username = credential_list->credentials[idx].user;
+} 
+void rd_kafka_scram_credential_list_get_errorcode_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,int *errorcode){
+        *errorcode = credential_list->credentials[idx].errorcode;
+}
+void rd_kafka_scram_credential_list_get_error_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,char **err){
+        *err = credential_list->credentials[idx].err;
+}
+rd_kafka_scram_credential_list_get_mechanism_idx(usercredentials,itr,&mechanism);
+                                rd_kafka_scram_credential_list_get_iterations_idx(usercredentials,itr,&iterations);
+
+void rd_kafka_scram_credential_list_get_mechanism_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,int *mechanism){
+        *mechanism = credential_list->credentials[idx].mechanism;
+}
+void rd_kafka_scram_credential_list_get_iterations_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,int *iterations){
+        *iterations = &credential_list->credentials[idx].iterations;
+}
+void rd_kafka_DescribeUserScramCredentials_result_count(rd_kafka_DescribeUserScramCredentials_result_t *result,int *num_results){
+        *num_results = rd_list_cnt(result->rko_u.admin_result.results);
+}
+rd_kafka_scram_credential_list_t* rd_kafka_DescribeUserScramCredentials_result_get_idx(rd_kafka_DescribeUserScramCredentials_result_t *result,int idx){
+        return rd_list_elem(result->rko_u.admin_result.results,idx);
 }
 /**@}*/
 

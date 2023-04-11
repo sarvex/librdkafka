@@ -4815,9 +4815,14 @@ rd_kafka_resp_err_t rd_kafka_DescribeUserScramCredentialsRequest(rd_kafka_broker
     rd_kafka_replyq_t replyq,
     rd_kafka_resp_cb_t *resp_cb,
     void *opaque){
-
+        /*
+                DescribeUserScramCredentials Request (Version: 0) => [users] TAG_BUFFER 
+                users => name TAG_BUFFER 
+                        name => COMPACT_STRING
+        */
         rd_kafka_buf_t *rkbuf;
         int16_t ApiVersion = 0; 
+        /*Ad the correct version of Api*/
         int num_users = rd_list_cnt(userlist);
 
         rkbuf = rd_kafka_buf_new_request(rkb, RD_KAFKAP_DescribeUserScramCredentials, 1,
@@ -4827,8 +4832,9 @@ rd_kafka_resp_err_t rd_kafka_DescribeUserScramCredentialsRequest(rd_kafka_broker
         for(i=0;i<num_users;i++){
                rd_kafkap_str_t *user = rd_list_elem(userlist,i);
                rd_kafka_buf_write_str(rkbuf,&user->str,user->len);
+               rd_kafka_buf_write_tags(rkbuf);
         }
-
+        /* Last Tag buffer included automatically*/
         rd_kafka_broker_buf_enq_replyq(rkb, rkbuf, replyq, resp_cb, opaque);
         return RD_KAFKA_RESP_ERR_NO_ERROR;
 }
@@ -4846,7 +4852,19 @@ rd_kafka_DescribeUserScramCredentialsResponse_parse(rd_kafka_op_t *rko_req,
         int32_t num_users;
         int16_t error_code;
         rd_kafkap_str_t error_msg;
-
+        /*
+        DescribeUserScramCredentials Response (Version: 0) => throttle_time_ms error_code error_message [results] TAG_BUFFER 
+        throttle_time_ms => INT32
+        error_code => INT16
+        error_message => COMPACT_NULLABLE_STRING
+        results => user error_code error_message [credential_infos] TAG_BUFFER 
+                user => COMPACT_STRING
+                error_code => INT16
+                error_message => COMPACT_NULLABLE_STRING
+                credential_infos => mechanism iterations TAG_BUFFER 
+                        mechanism => INT8
+                        iterations => INT32
+        */
         rd_kafka_buf_read_throttle_time(reply);
 
         rd_kafka_buf_read_i16(reply, &error_code);
@@ -4861,7 +4879,7 @@ rd_kafka_DescribeUserScramCredentialsResponse_parse(rd_kafka_op_t *rko_req,
         rko_result = rd_kafka_admin_result_new(rko_req);
 
         rd_kafka_buf_read_i32(reply,&num_users);
-        rd_list_init(&rko_result->rko_u.admin_result.results,num_users,rd_kafka_scram_credential_destroy);
+        rd_list_init(&rko_result->rko_u.admin_result.results,num_users,rd_kafka_scram_credential_list_destroy); 
         
         int i;
         for(int i=0;i<num_users;i++){
@@ -4874,19 +4892,19 @@ rd_kafka_DescribeUserScramCredentialsResponse_parse(rd_kafka_op_t *rko_req,
                 rd_kafka_buf_read_str(reply,user_error_msg);
                 int32_t num_credentials;
                 rd_kafka_buf_read_i32(reply,&num_credentials);
+                /* Make a list*/
+                rd_kafka_scram_credential_list_t *user_scram_credentials = rd_kafka_scram_credential_list_new(num_credentials);
                 for(itr=0;itr<num_credentials;itr++){
                         int8_t mechanism;
                         int32_t iterations;
                         rd_kafka_buf_read_i8(reply,&mechanism);
                         rd_kafka_buf_read_i32(reply,&iterations);
-                        rd_kafka_scram_credential_t *scram_credential = rd_kafka_scram_credential_new(&username->str,mechanism,iterations);
-                        scram_credential->user = rd_strdup(&username->str);
+                        rd_kafka_buf_skip_tags(reply);
+                        rd_kafka_scram_credential_t *scram_credential = rd_kafka_scram_credential_list_add_new(user_scram_credentials,&username->str,mechanism,iterations);/* To Implement*/
                         scram_credential->errorcode = user_error_code;
                         scram_credential->err = rd_strdup(&user_error_msg->str);
-                        rd_list_add(&rko_result->rko_u.admin_result.results,scram_credential);
                 }
-                
-                
+                rd_list_add(&rko_result->rko_u.admin_result.results,user_scram_credentials);
         }
         *rko_resultp = rko_result;
 

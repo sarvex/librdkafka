@@ -168,18 +168,42 @@ int main(int argc, char **argv) {
                 exitcode = 2;
 
         } else {
-                /* DeleteRecords request succeeded, but individual
-                 * partitions may have errors. */
                 const rd_kafka_DescribeUserScramCredentials_result_t *result;
-                
                 int num_results;
                 int i;
-                result  = rd_kafka_event_DeleteRecords_result(event);
+                result  = rd_kafka_event_DescribeUserScramCredentials_result(event);
                 rd_kafka_DescribeUserScramCredentials_result_count(result,&num_results);
-
                 printf("DescribeUserScramResults results:\n");
                 for (i = 0; i < num_results; i++){
-                    rd_kafka_print_DescribeUserScramCredentials_result_idx(result,i);
+                        rd_kafka_scram_credential_list_t *usercredentials;
+                        usercredentials = rd_kafka_DescribeUserScramCredentials_result_get_idx(result,i);/*Does not Copy*/
+                        char *username;
+                        char *err;
+                        int8_t errorcode;
+                        int32_t num_credentials;
+                        rd_kafka_scram_credential_list_cnt(usercredentials,&num_credentials);
+                        rd_kafka_scram_credential_list_get_user_idx(usercredentials,0,&username); /*Does not Copy*/
+                        rd_kafka_scram_credential_list_get_errorcode_idx(usercredentials,0,&errorcode);
+                        rd_kafka_scram_credential_list_get_error_idx(usercredentials,0,&err);
+                        printf("Username : %s , errorcode : %d , error-message : %s\n",username,errorcode,err);
+                        int itr;
+                        for(itr=0;itr<num_credentials;itr++){
+                                int8_t mechanism;
+                                int32_t iterations;
+                                rd_kafka_scram_credential_list_get_mechanism_idx(usercredentials,itr,&mechanism);
+                                rd_kafka_scram_credential_list_get_iterations_idx(usercredentials,itr,&iterations);
+                                switch (mechanism)
+                                {
+                                case 0:
+                                        printf("        Mechanism is UNKNOWN\n");
+                                case 1:
+                                        printf("        Mechanism is SCRAM-SHA-256\n");
+                                case 2:
+                                        printf("        Mechanism is SCRAM=SHA-512\n");
+                                }
+                                printf("        Iterations are %d\n",iterations);
+                        }
+
                 }
         }
 

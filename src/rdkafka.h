@@ -877,7 +877,9 @@ RD_EXPORT
 rd_kafka_error_t *rd_kafka_error_new(rd_kafka_resp_err_t code,
                                      const char *fmt,
                                      ...) RD_FORMAT(printf, 2, 3);
-
+/*
+ * SCRAM API CONFIG Structures and Functionalities  **START**
+*/
 typedef enum rd_kafka_scram_mechanism_s rd_kafka_scram_mechanism_t;
 
 typedef struct rd_kafka_scram_credential_s rd_kafka_scram_credential_t;
@@ -893,6 +895,63 @@ rd_kafka_scram_credential_t *rd_kafka_scram_credential_new(char *username,int8_t
 RD_EXPORT
 rd_kafka_scram_credential_t *rd_kafka_scram_credential_copy(rd_kafka_scram_credential_t *scram_cred);
 
+RD_EXPORT
+int rd_kafka_count_AlterUserScramCredentials_result(rd_kafka_DescribeUserScramCredentials_result_t *result);
+
+RD_EXPORT
+void rd_kafka_read_AlterUserScramCredentials_result(rd_kafka_DescribeUserScramCredentials_result_t *result,int idx,char *username,int *errorcode,char *err);
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_destroy(rd_kafka_scram_credential_list_t *credential_list);
+
+RD_EXPORT
+rd_kafka_scram_credential_list_t* rd_kafka_scram_credential_list_new(int size);
+
+RD_EXPORT
+rd_kafka_scram_credential_t *rd_kafka_scram_credential_list_add_new(rd_kafka_scram_credential_list_t *credential_list,char *user,int8_t mechanism,int32_t iterations);
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_cnt(rd_kafka_scram_credential_list_t *credential_list,int *num_credentials){
+        *num_credentials = credential_list->cnt;
+}
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_get_user_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,char **username){
+        *username = credential_list->credentials[idx].user;
+}
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_get_errorcode_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,int *errorcode){
+        *errorcode = credential_list->credentials[idx].errorcode;
+}
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_get_error_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,char **err){
+        *err = credential_list->credentials[idx].err;
+}
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_get_mechanism_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,int *mechanism){
+        *mechanism = credential_list->credentials[idx].mechanism;
+}
+
+RD_EXPORT
+void rd_kafka_scram_credential_list_get_iterations_idx(rd_kafka_scram_credential_list_t *credential_list,int idx,int *iterations){
+        *iterations = &credential_list->credentials[idx].iterations;
+}
+
+RD_EXPORT
+void rd_kafka_DescribeUserScramCredentials_result_count(rd_kafka_DescribeUserScramCredentials_result_t *result,int *num_results){
+        *num_results = rd_list_cnt(result->rko_u.admin_result.results);
+}
+
+RD_EXPORT
+rd_kafka_scram_credential_list_t* rd_kafka_DescribeUserScramCredentials_result_get_idx(rd_kafka_DescribeUserScramCredentials_result_t *result,int idx){
+        return rd_list_elem(result->rko_u.admin_result.results,idx);
+}
+/*
+ * SCRAM API CONFIG Structures and Functionalities **END**
+*/
 
 /**
  * @brief Topic+Partition place holder
