@@ -732,12 +732,12 @@ typedef enum {
 
 /* All possible racks used in tests, as well as several common rack configs used
  * by consumers */
-static rd_kafkap_str_t *ALL_RACKS[7] =
-    {}; /* initialized before starting the unit tests. */
+static rd_kafkap_str_t
+    *ALL_RACKS[7]; /* initialized before starting the unit tests. */
 static int RACKS_INITIAL[]  = {0, 1, 2};
 static int RACKS_NULL[]     = {6, 6, 6};
 static int RACKS_FINAL[]    = {4, 5, 6};
-static int RACKS_ONE_NULL[] = {7, 5, 6};
+static int RACKS_ONE_NULL[] = {6, 4, 5};
 
 /* Helper to compute rd_kafka_broker_id_rack_pair_t* to pass the assignor.
  * Passing num_broker_racks = 0 will return NULL racks. */
