@@ -173,25 +173,29 @@ int main(int argc, char **argv) {
                 int i;
                 result  = rd_kafka_event_DescribeUserScramCredentials_result(event);
                 rd_kafka_DescribeUserScramCredentials_result_count(result,&num_results);
-                printf("DescribeUserScramResults results:\n");
+                printf("DescribeUserScramCredentialsResults results:\n");
                 for (i = 0; i < num_results; i++){
+                        /* Update this one*/
                         rd_kafka_scram_credential_list_t *usercredentials;
-                        usercredentials = rd_kafka_DescribeUserScramCredentials_result_get_idx(result,i);/*Does not Copy*/
-                        char *username;
-                        char *err;
-                        int8_t errorcode;
+                        usercredentials = rd_kafka_DescribeUserScramCredentials_result_get_idx(result,i);
                         int32_t num_credentials;
                         rd_kafka_scram_credential_list_cnt(usercredentials,&num_credentials);
-                        rd_kafka_scram_credential_list_get_user_idx(usercredentials,0,&username); /*Does not Copy*/
-                        rd_kafka_scram_credential_list_get_errorcode_idx(usercredentials,0,&errorcode);
-                        rd_kafka_scram_credential_list_get_error_idx(usercredentials,0,&err);
+                        rd_kafka_scram_credential_t *scram;
+                        scram = rd_kafka_scram_credential_list_get_idx(usercredentials,0);
+                        char *username;
+                        char *err;
+                        int16_t errorcode;
+                        rd_kafka_scram_credential_get_user(scram,&username); 
+                        rd_kafka_scram_credential_get_errorcode(scram,&errorcode);
+                        rd_kafka_scram_credential_get_err(scram,&err);
                         printf("Username : %s , errorcode : %d , error-message : %s\n",username,errorcode,err);
                         int itr;
                         for(itr=0;itr<num_credentials;itr++){
+                                scram = rd_kafka_scram_credential_list_get_idx(usercredentials,itr);
                                 int8_t mechanism;
                                 int32_t iterations;
-                                rd_kafka_scram_credential_list_get_mechanism_idx(usercredentials,itr,&mechanism);
-                                rd_kafka_scram_credential_list_get_iterations_idx(usercredentials,itr,&iterations);
+                                rd_kafka_scram_credential_get_mechanism(scram,&mechanism);
+                                rd_kafka_scram_credential_get_iterations(scram,&iterations);
                                 switch (mechanism)
                                 {
                                 case 0:
@@ -206,7 +210,118 @@ int main(int argc, char **argv) {
 
                 }
         }
+        /* First Upsert a mechanism*/
+        char *username;
+        int8_t mechanism;
+        int32_t iterations;
+        char *salt;
+        char *saltedpassword;
+        
+        rd_kafka_scram_credential_list_t *credentials = rd_kafka_scram_credential_list_new(1);
+        rd_kafka_scram_credential_t *scram = rd_kafka_scram_credential_list_add_new(credentials,username,mechanism,iterations);
+        rd_kafka_scram_credential_set_salt(scram,salt);
+        rd_kafka_scram_credential_set_saltedpassword(scram,saltedpassword);
 
+        options =
+            rd_kafka_AdminOptions_new(rk, RD_KAFKA_ADMIN_OP_DESCRIBEUSERSCRAMCREDENTIALS);  /* to identify*/
+        if (rd_kafka_AdminOptions_set_request_timeout(
+                options, 30 * 1000 /* 30s */, errstr, sizeof(errstr))) {
+                fprintf(stderr, "%% Failed to set timeout: %s\n", errstr);
+                return 1;
+        }
+        /* Call the AlterUserScramCredentials Function*/
+        rd_kafka_AlterUserScramCredentials(rk,credentials,options,queue);
+        rd_kafka_AdminOptions_destroy(options);
+
+         /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event) {
+                /* User hit Ctrl-C */
+                fprintf(stderr, "%% Cancelled by user\n");
+
+        } else if (rd_kafka_event_error(event)) {
+                /* DeleteRecords request failed */
+                fprintf(stderr, "%% DeleteRecords failed: %s\n",
+                        rd_kafka_event_error_string(event));
+                exitcode = 2;
+
+        } else {
+                const rd_kafka_AlterUserScramCredentials_result_t *result;
+                int num_results;
+                int i;
+                result  = rd_kafka_event_AlterUserScramCredentials_result(event);
+                rd_kafka_AlterUserScramCredentials_result_count(result,&num_results); /* To Implement */
+                printf("AlterUserScramCredentialsResults results:\n");
+                for (i = 0; i < num_results; i++){
+                        rd_kafka_scram_credential_t *scram;
+                        scram = rd_kafka_AlterUserScramCredentials_result_get_idx(result,i); /* To Implement */
+                        char *username;
+                        char *err;
+                        int8_t errorcode;
+                        rd_kafka_scram_credential_get_user(scram,&username);
+                        rd_kafka_scram_credential_get_err(scram,&err);
+                        rd_kafka_scram_credential_get_errorcode(scram,&errorcode);
+                        printf("Username : %s , errorcode : %d , error-message : %s\n",username,errorcode,err);
+
+                }
+        }
+
+        /* Describe the user mechanisms */
+        
+
+        /* Delete the user mechanism */
+        scram = rd_kafka_scram_credential_list_get_idx(credentials,0);
+        rd_kafka_scram_credential_set_iterations(scram,-2);
+
+        options =
+            rd_kafka_AdminOptions_new(rk, RD_KAFKA_ADMIN_OP_DESCRIBEUSERSCRAMCREDENTIALS);  /* to identify*/
+        if (rd_kafka_AdminOptions_set_request_timeout(
+                options, 30 * 1000 /* 30s */, errstr, sizeof(errstr))) {
+                fprintf(stderr, "%% Failed to set timeout: %s\n", errstr);
+                return 1;
+        }
+        /* Call the AlterUserScramCredentials Function*/
+        rd_kafka_AlterUserScramCredentials(rk,credentials,options,queue);
+        rd_kafka_AdminOptions_destroy(options);
+
+         /* Wait for results */
+        event = rd_kafka_queue_poll(queue, -1 /*indefinitely*/);
+
+        if (!event) {
+                /* User hit Ctrl-C */
+                fprintf(stderr, "%% Cancelled by user\n");
+
+        } else if (rd_kafka_event_error(event)) {
+                /* DeleteRecords request failed */
+                fprintf(stderr, "%% DeleteRecords failed: %s\n",
+                        rd_kafka_event_error_string(event));
+                exitcode = 2;
+
+        } else {
+                const rd_kafka_AlterUserScramCredentials_result_t *result;
+                int num_results;
+                int i;
+                result  = rd_kafka_event_AlterUserScramCredentials_result(event);
+                rd_kafka_AlterUserScramCredentials_result_count(result,&num_results); /* To Implement */
+                printf("AlterUserScramCredentialsResults results:\n");
+                for (i = 0; i < num_results; i++){
+                        rd_kafka_scram_credential_t *scram;
+                        scram = rd_kafka_AlterUserScramCredentials_result_get_idx(result,i); /* To Implement */
+                        char *username;
+                        char *err;
+                        int8_t errorcode;
+                        rd_kafka_scram_credential_get_user(scram,&username);
+                        rd_kafka_scram_credential_get_err(scram,&err);
+                        rd_kafka_scram_credential_get_errorcode(scram,&errorcode);
+                        printf("Username : %s , errorcode : %d , error-message : %s\n",username,errorcode,err);
+
+                }
+                /* Destroy the result in it aswell */
+                /* Destroy the event object */
+        }
+
+        /* Describe the user mechanisms */
         /* Destroy event object when we're done with it.
          * Note: rd_kafka_event_destroy() allows a NULL event. */
         rd_kafka_event_destroy(event);
