@@ -31,7 +31,7 @@ class LibrdkafkaTestApp(App):
         self.version = version
 
         # Generate test config file
-        conf_blob = list()
+        conf_blob = []
         self.security_protocol = 'PLAINTEXT'
 
         f, self.test_conf_file = self.open_file('test.conf', 'perm')
@@ -41,49 +41,48 @@ class LibrdkafkaTestApp(App):
 
         sparse = conf.get('sparse_connections', None)
         if sparse is not None:
-            f.write('enable.sparse.connections={}\n'.format(
-                sparse).encode('ascii'))
+            f.write(f'enable.sparse.connections={sparse}\n'.encode('ascii'))
 
         if version.startswith('0.9') or version.startswith('0.8'):
-            conf_blob.append('api.version.request=false')
-            conf_blob.append('broker.version.fallback=%s' % version)
+            conf_blob.extend(
+                ('api.version.request=false', f'broker.version.fallback={version}')
+            )
         else:
-            # any broker version with ApiVersion support
-            conf_blob.append('broker.version.fallback=0.10.0.0')
-            conf_blob.append('api.version.fallback.ms=0')
-
+            conf_blob.extend(
+                ('broker.version.fallback=0.10.0.0', 'api.version.fallback.ms=0')
+            )
         # SASL (only one mechanism supported at a time)
         mech = self.conf.get('sasl_mechanisms', '').split(',')[0]
         if mech != '':
-            conf_blob.append('sasl.mechanisms=%s' % mech)
+            conf_blob.append(f'sasl.mechanisms={mech}')
             if mech == 'PLAIN' or mech.find('SCRAM-') != -1:
                 self.security_protocol = 'SASL_PLAINTEXT'
                 # Use first user as SASL user/pass
                 for up in self.conf.get('sasl_users', '').split(','):
                     u, p = up.split('=')
-                    conf_blob.append('sasl.username=%s' % u)
-                    conf_blob.append('sasl.password=%s' % p)
+                    conf_blob.extend((f'sasl.username={u}', f'sasl.password={p}'))
                     break
 
             elif mech == 'OAUTHBEARER':
                 self.security_protocol = 'SASL_PLAINTEXT'
                 oidc = cluster.find_app(OauthbearerOIDCApp)
                 if oidc is not None:
-                    conf_blob.append('sasl.oauthbearer.method=%s\n' %
-                                     oidc.conf.get('sasl_oauthbearer_method'))
-                    conf_blob.append('sasl.oauthbearer.client.id=%s\n' %
-                                     oidc.conf.get(
-                                         'sasl_oauthbearer_client_id'))
-                    conf_blob.append('sasl.oauthbearer.client.secret=%s\n' %
-                                     oidc.conf.get(
-                                         'sasl_oauthbearer_client_secret'))
-                    conf_blob.append('sasl.oauthbearer.extensions=%s\n' %
-                                     oidc.conf.get(
-                                         'sasl_oauthbearer_extensions'))
-                    conf_blob.append('sasl.oauthbearer.scope=%s\n' %
-                                     oidc.conf.get('sasl_oauthbearer_scope'))
-                    conf_blob.append('sasl.oauthbearer.token.endpoint.url=%s\n'
-                                     % oidc.conf.get('valid_url'))
+                    conf_blob.extend(
+                        (
+                            'sasl.oauthbearer.method=%s\n'
+                            % oidc.conf.get('sasl_oauthbearer_method'),
+                            'sasl.oauthbearer.client.id=%s\n'
+                            % oidc.conf.get('sasl_oauthbearer_client_id'),
+                            'sasl.oauthbearer.client.secret=%s\n'
+                            % oidc.conf.get('sasl_oauthbearer_client_secret'),
+                            'sasl.oauthbearer.extensions=%s\n'
+                            % oidc.conf.get('sasl_oauthbearer_extensions'),
+                            'sasl.oauthbearer.scope=%s\n'
+                            % oidc.conf.get('sasl_oauthbearer_scope'),
+                            'sasl.oauthbearer.token.endpoint.url=%s\n'
+                            % oidc.conf.get('valid_url'),
+                        )
+                    )
                     self.env_add('VALID_OIDC_URL', oidc.conf.get('valid_url'))
                     self.env_add(
                         'INVALID_OIDC_URL',
@@ -92,12 +91,13 @@ class LibrdkafkaTestApp(App):
                         'EXPIRED_TOKEN_OIDC_URL',
                         oidc.conf.get('expired_url'))
                 else:
-                    conf_blob.append(
-                        'enable.sasl.oauthbearer.unsecure.jwt=true\n')
-                    conf_blob.append(
-                        'sasl.oauthbearer.config=%s\n' %
-                        self.conf.get('sasl_oauthbearer_config'))
-
+                    conf_blob.extend(
+                        (
+                            'enable.sasl.oauthbearer.unsecure.jwt=true\n',
+                            'sasl.oauthbearer.config=%s\n'
+                            % self.conf.get('sasl_oauthbearer_config'),
+                        )
+                    )
             elif mech == 'GSSAPI':
                 self.security_protocol = 'SASL_PLAINTEXT'
                 kdc = cluster.find_app(KerberosKdcApp)
@@ -112,43 +112,45 @@ class LibrdkafkaTestApp(App):
                     principal, keytab = kdc.add_principal(
                         self.name,
                         conf.get('advertised_hostname', self.node.name))
-                    conf_blob.append('sasl.kerberos.service.name=%s' %
-                                     self.conf.get('sasl_servicename',
-                                                   'kafka'))
-                    conf_blob.append('sasl.kerberos.keytab=%s' % keytab)
-                    conf_blob.append(
-                        'sasl.kerberos.principal=%s' %
-                        principal.split('@')[0])
-
+                    conf_blob.extend(
+                        (
+                            f"sasl.kerberos.service.name={self.conf.get('sasl_servicename', 'kafka')}",
+                            f'sasl.kerberos.keytab={keytab}',
+                            f"sasl.kerberos.principal={principal.split('@')[0]}",
+                        )
+                    )
             else:
                 self.log(
-                    'WARNING: FIXME: SASL %s client config not written to %s: unhandled mechanism' %  # noqa: E501
-                    (mech, self.test_conf_file))
+                    f'WARNING: FIXME: SASL {mech} client config not written to {self.test_conf_file}: unhandled mechanism'
+                )
 
         # SSL config
         if getattr(cluster, 'ssl', None) is not None:
             ssl = cluster.ssl
 
-            key = ssl.create_cert('librdkafka%s' % self.appid)
+            key = ssl.create_cert(f'librdkafka{self.appid}')
 
-            conf_blob.append('ssl.ca.location=%s' % ssl.ca['pem'])
-            conf_blob.append('ssl.certificate.location=%s' % key['pub']['pem'])
-            conf_blob.append('ssl.key.location=%s' % key['priv']['pem'])
-            conf_blob.append('ssl.key.password=%s' % key['password'])
-
+            conf_blob.extend(
+                (
+                    f"ssl.ca.location={ssl.ca['pem']}",
+                    f"ssl.certificate.location={key['pub']['pem']}",
+                    f"ssl.key.location={key['priv']['pem']}",
+                    'ssl.key.password=%s' % key['password'],
+                )
+            )
             # Some tests need fine-grained access to various cert files,
             # set up the env vars accordingly.
             for k, v in ssl.ca.items():
-                self.env_add('SSL_ca_{}'.format(k), v)
+                self.env_add(f'SSL_ca_{k}', v)
 
             # Set envs for all generated keys so tests can find them.
             for k, v in key.items():
                 if isinstance(v, dict):
                     for k2, v2 in v.items():
                         # E.g. "SSL_priv_der=path/to/librdkafka-priv.der"
-                        self.env_add('SSL_{}_{}'.format(k, k2), v2)
+                        self.env_add(f'SSL_{k}_{k2}', v2)
                 else:
-                    self.env_add('SSL_{}'.format(k), v)
+                    self.env_add(f'SSL_{k}', v)
 
             if 'SASL' in self.security_protocol:
                 self.security_protocol = 'SASL_SSL'
@@ -165,7 +167,7 @@ class LibrdkafkaTestApp(App):
                     KafkaBrokerApp))).split(',')
         bootstrap_servers = ','.join(
             [x for x in all_listeners if x.startswith(self.security_protocol)])
-        if len(bootstrap_servers) == 0:
+        if not bootstrap_servers:
             bootstrap_servers = all_listeners[0]
             self.log(
                 'WARNING: No eligible listeners for security.protocol=%s in %s: falling back to first listener: %s: tests will fail (which might be the intention)' %  # noqa: E501
@@ -173,9 +175,12 @@ class LibrdkafkaTestApp(App):
 
         self.bootstrap_servers = bootstrap_servers
 
-        conf_blob.append('bootstrap.servers=%s' % bootstrap_servers)
-        conf_blob.append('security.protocol=%s' % self.security_protocol)
-
+        conf_blob.extend(
+            (
+                'bootstrap.servers=%s' % bootstrap_servers,
+                'security.protocol=%s' % self.security_protocol,
+            )
+        )
         f.write(('\n'.join(conf_blob)).encode('ascii'))
         f.close()
 
@@ -228,7 +233,7 @@ class LibrdkafkaTestApp(App):
             if jmx_port is not None:
                 self.env_add('BROKER_JMX_PORT_%d' % b.appid, str(jmx_port))
 
-        extra_args = list()
+        extra_args = []
         if not self.local_tests:
             extra_args.append('-L')
         if self.conf.get('args', None) is not None:

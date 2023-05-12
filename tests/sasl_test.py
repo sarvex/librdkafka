@@ -44,12 +44,10 @@ def test_it(version, deploy=True, conf={}, rdkconf={}, tests=None, debug=False,
     cluster.start(timeout=30)
 
     print(
-        '# Connect to cluster with bootstrap.servers %s' %
-        cluster.bootstrap_servers())
+        f'# Connect to cluster with bootstrap.servers {cluster.bootstrap_servers()}'
+    )
     rdkafka.start()
-    print(
-        '# librdkafka regression tests started, logs in %s' %
-        rdkafka.root_path())
+    print(f'# librdkafka regression tests started, logs in {rdkafka.root_path()}')
     try:
         rdkafka.wait_stopped(timeout=60 * 30)
         rdkafka.dbg(
@@ -77,26 +75,25 @@ def handle_report(report, version, suite):
 
     passed = report.get('tests_passed', 0)
     failed = report.get('tests_failed', 0)
-    if 'all' in suite.get('expect_fail', []) or version in suite.get(
-            'expect_fail', []):
-        expect_fail = True
-    else:
-        expect_fail = False
-
+    expect_fail = 'all' in suite.get(
+        'expect_fail', []
+    ) or version in suite.get('expect_fail', [])
     if expect_fail:
-        if failed == test_cnt:
-            return (True, 'All %d/%d tests failed as expected' %
-                    (failed, test_cnt))
-        else:
-            return (False, '%d/%d tests failed: expected all to fail' %
-                    (failed, test_cnt))
+        return (
+            (True, 'All %d/%d tests failed as expected' % (failed, test_cnt))
+            if failed == test_cnt
+            else (
+                False,
+                '%d/%d tests failed: expected all to fail'
+                % (failed, test_cnt),
+            )
+        )
+    if failed > 0:
+        return (False, '%d/%d tests passed: expected all to pass' %
+                (passed, test_cnt))
     else:
-        if failed > 0:
-            return (False, '%d/%d tests passed: expected all to pass' %
-                    (passed, test_cnt))
-        else:
-            return (True, 'All %d/%d tests passed as expected' %
-                    (passed, test_cnt))
+        return (True, 'All %d/%d tests passed as expected' %
+                (passed, test_cnt))
 
 
 if __name__ == '__main__':
@@ -139,26 +136,23 @@ if __name__ == '__main__':
                         nargs='*', help='Limit broker versions to these')
     args = parser.parse_args()
 
-    conf = dict()
-    rdkconf = dict()
+    conf = {}
+    rdkconf = {}
 
     if args.conf is not None:
-        conf.update(json.loads(args.conf))
+        conf |= json.loads(args.conf)
     if args.rdkconf is not None:
-        rdkconf.update(json.loads(args.rdkconf))
-    if args.tests is not None:
-        tests = args.tests.split(',')
-    else:
-        tests = None
-
+        rdkconf |= json.loads(args.rdkconf)
+    tests = args.tests.split(',') if args.tests is not None else None
     conf.update(read_scenario_conf(args.scenario))
 
     # Test version,supported mechs + suite matrix
-    versions = list()
+    versions = []
     if len(args.versions):
-        for v in args.versions:
-            versions.append(
-                (v, ['SCRAM-SHA-512', 'PLAIN', 'GSSAPI', 'OAUTHBEARER']))
+        versions.extend(
+            (v, ['SCRAM-SHA-512', 'PLAIN', 'GSSAPI', 'OAUTHBEARER'])
+            for v in args.versions
+        )
     else:
         versions = [('3.1.0',
                      ['SCRAM-SHA-512', 'PLAIN', 'GSSAPI', 'OAUTHBEARER']),
@@ -234,7 +228,7 @@ if __name__ == '__main__':
     fail_cnt = 0
     for version, supported in versions:
         if len(args.versions) > 0 and version not in args.versions:
-            print('### Skipping version %s' % version)
+            print(f'### Skipping version {version}')
             continue
 
         for suite in suites:
@@ -261,23 +255,18 @@ if __name__ == '__main__':
             _rdkconf.update(suite.get('rdkconf', {}))
 
             if 'version' not in suite:
-                suite['version'] = dict()
+                suite['version'] = {}
 
             # Disable SASL broker config if broker version does
             # not support the selected mechanism
-            mech = suite.get('conf', dict()).get('sasl_mechanisms', None)
+            mech = suite.get('conf', {}).get('sasl_mechanisms', None)
             if mech is not None and mech not in supported:
-                print('# Disabled SASL for broker version %s' % version)
+                print(f'# Disabled SASL for broker version {version}')
                 _conf.pop('sasl_mechanisms', None)
 
             # Run tests
-            print(
-                '#### Version %s, suite %s: STARTING' %
-                (version, suite['name']))
-            if tests is None:
-                tests_to_run = suite.get('tests', None)
-            else:
-                tests_to_run = tests
+            print(f"#### Version {version}, suite {suite['name']}: STARTING")
+            tests_to_run = suite.get('tests', None) if tests is None else tests
             report = test_it(version, tests=tests_to_run, conf=_conf,
                              rdkconf=_rdkconf,
                              debug=args.debug, scenario=args.scenario)
@@ -295,10 +284,9 @@ if __name__ == '__main__':
             else:
                 print('\033[41m#### Version %s, suite %s: FAILED: %s\033[0m' %
                       (version, suite['name'], reason))
-                print_test_report_summary('%s @ %s' %
-                                          (suite['name'], version), report)
+                print_test_report_summary(f"{suite['name']} @ {version}", report)
                 fail_cnt += 1
-            print('#### Test output: %s/stderr.log' % (report['root_path']))
+            print(f"#### Test output: {report['root_path']}/stderr.log")
 
             suite['version'][version] = report
 
@@ -320,7 +308,7 @@ if __name__ == '__main__':
 
     print('\n\n\n')
     print_report_summary(full_report)
-    print('#### Full test suites report in: %s' % test_suite_report_file)
+    print(f'#### Full test suites report in: {test_suite_report_file}')
 
     if pass_cnt == 0 or fail_cnt > 0:
         sys.exit(1)
